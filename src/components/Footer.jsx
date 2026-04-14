@@ -1,14 +1,16 @@
-import { FaFacebook, FaTwitter, FaInstagram, FaLinkedin, FaEnvelope, FaPhone, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaFacebook, FaTwitter, FaInstagram, FaLinkedin, FaEnvelope, FaPhone, FaMapMarkerAlt, FaHome } from 'react-icons/fa'
 
 function Footer() {
+  const currentYear = new Date().getFullYear()
+
   return (
-    <footer className="bg-gray-900 text-white mt-auto">
+    <footer className="border-t-2 border-t-gray-800 bg-gray-900 text-white mt-auto">
       <div className="max-w-7xl mx-auto px-5 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-2xl">🏠</span>
+              <FaHome className="text-2xl text-[#FF385C]" />
               <span className="text-xl font-bold">StayHub</span>
             </div>
             <p className="text-gray-400 text-sm">
@@ -64,11 +66,11 @@ function Footer() {
         </div>
         
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500 text-sm">
-          <p>&copy; 2024 StayHub. All rights reserved.</p>
+          <p>&copy; {currentYear} StayHub. All rights reserved.</p>
         </div>
       </div>
     </footer>
-  );
+  )
 }
 
-export default Footer;
+export default Footer

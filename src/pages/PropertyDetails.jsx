@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { FaWhatsapp, FaArrowLeft, FaBed, FaBuilding, FaMapMarkerAlt, FaRupeeSign } from 'react-icons/fa'
+import dummyImage from '../assets/dummy.png'
 
 function PropertyDetails({ properties }) {
   const { id } = useParams()
@@ -34,10 +35,12 @@ function PropertyDetails({ properties }) {
       </button>
       
       <div className="grid md:grid-cols-2 gap-8 bg-white dark:bg-gray-800 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
-        <img  src={property.cover_image || property.image_url} 
-          alt={property.title} 
-          className="w-full h-full object-cover min-h-[400px] md:min-h-[500px]"
-        />
+       <img 
+        src={property.cover_image || property.image_url || dummyImage} 
+        alt={property.title} 
+        className="w-full h-full object-cover min-h-[400px] md:min-h-[500px]"
+        onError={(e) => { e.target.src = dummyImage }}
+      />
         
         <div className="p-8">
           <h1 className="text-3xl md:text-4xl font-semibold text-gray-900 dark:text-white mb-4">

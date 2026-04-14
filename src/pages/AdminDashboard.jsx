@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react'
-import { FaEdit, FaTrash, FaPlus, FaTimes, FaSave, FaCloudUploadAlt } from 'react-icons/fa'
+import { FaEdit, FaTrash, FaPlus, FaTimes, FaSave, FaCloudUploadAlt, FaStar } from 'react-icons/fa'
 import axios from 'axios'
 import ConfirmModal from '../components/ConfirmModal'
+import { GiReceiveMoney, GiTakeMyMoney } from 'react-icons/gi'
+import { FaToggleOn, FaToggleOff } from 'react-icons/fa'
+import { toast } from 'react-toastify'
+import dummyImage from '../assets/dummy.png'
+
 
 function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteProperty }) {
   const [showModal, setShowModal] = useState(false)
@@ -20,6 +25,7 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
   // Responsive view
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768)
 
+
   const [formData, setFormData] = useState({
     title: '',
     price: '',
@@ -27,7 +33,10 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
     description: '',
     contact_number: '',
     bhk: '',
-    type: 'house'
+    type: 'house',
+    purpose: 'sale',  // Add this
+    rent_price: '',   // Add this
+    rent_period: 'monthly'  // Add this
   })
 
   useEffect(() => {
@@ -98,6 +107,42 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
     }
   }
 
+  // Delete image from property
+  const deleteImage = async (imageId) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/upload/images/${imageId}`, {
+        withCredentials: true
+      })
+      
+      // Remove from local state
+      setExistingImages(existingImages.filter(img => img.id !== imageId))
+      toast.success('Image deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting image:', error)
+      toast.error('Failed to delete image')
+    }
+  }
+
+  // Set cover image
+  const setCoverImage = async (imageId) => {
+    try {
+      await axios.put(`http://localhost:5000/api/upload/images/${imageId}/set-cover`, {}, {
+        withCredentials: true
+      })
+      
+      // Update local state
+      const updatedImages = existingImages.map(img => ({
+        ...img,
+        is_cover: img.id === imageId
+      }))
+      setExistingImages(updatedImages)
+      toast.success('Cover image updated!')
+    } catch (error) {
+      console.error('Error setting cover:', error)
+      toast.error('Failed to set cover image')
+    }
+  }
+
   const openAddModal = () => {
     setEditingProperty(null)
     setFormData({
@@ -107,7 +152,10 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
       description: '',
       contact_number: '',
       bhk: '',
-      type: 'house'
+      type: 'house',
+      purpose: 'sale',
+      rent_price: '',
+      rent_period: 'monthly'
     })
     setSelectedFiles([])
     setImagePreviews([])
@@ -125,7 +173,10 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
       description: property.description,
       contact_number: property.contact_number,
       bhk: property.bhk,
-      type: property.type
+      type: property.type,
+      purpose: property.purpose || 'sale',
+      rent_price: property.rent_price || '',
+      rent_period: property.rent_period || 'monthly'
     })
     setSelectedFiles([])
     setImagePreviews([])
@@ -163,11 +214,20 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
   }
 
   const handleSubmit = async () => {
-    const requiredFields = ['title', 'price', 'location', 'description', 'contact_number', 'bhk']
-    const missingFields = requiredFields.filter(field => !formData[field])
+    // Validate based on purpose
+    const commonFields = ['title', 'location', 'description', 'contact_number', 'bhk']
+    const missingCommon = commonFields.filter(field => !formData[field])
+    
+    let missingFields = [...missingCommon]
+    
+    if (formData.purpose === 'sale') {
+      if (!formData.price) missingFields.push('price')
+    } else {
+      if (!formData.rent_price) missingFields.push('rent_price')
+    }
     
     if (missingFields.length > 0) {
-      alert(`Please fill in: ${missingFields.join(', ')}`)
+        toast.error(`Please fill in: ${missingFields.join(', ')}`)
       return
     }
     
@@ -175,12 +235,15 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
     
     const propertyData = {
       title: formData.title,
-      price: parseInt(formData.price),
+      price: formData.purpose === 'sale' ? parseInt(formData.price) : 0,
       location: formData.location,
       description: formData.description,
       contact_number: formData.contact_number,
       bhk: parseInt(formData.bhk),
-      type: formData.type
+      type: formData.type,
+      purpose: formData.purpose,
+      rent_price: formData.purpose === 'rent' ? parseInt(formData.rent_price) : null,
+      rent_period: formData.purpose === 'rent' ? formData.rent_period : null
     }
     
     try {
@@ -190,16 +253,14 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
         if (selectedFiles.length > 0) {
           await uploadImages(editingProperty.id)
         }
-        
-        alert('Property updated successfully!')
+        toast.success('Property updated successfully!')
       } else {
         const newProperty = await onAddProperty(propertyData)
         
         if (selectedFiles.length > 0 && newProperty && newProperty.id) {
           await uploadImages(newProperty.id)
         }
-        
-        alert('Property created successfully!')
+        toast.success('Property created successfully!')
       }
       
       setShowModal(false)
@@ -210,7 +271,7 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
       
     } catch (error) {
       console.error('Error saving property:', error)
-      alert(error.message || 'Failed to save property. Please try again.')
+      toast.error(error.message || 'Failed to save property. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -224,9 +285,10 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
   const confirmDelete = async () => {
     try {
       await onDeleteProperty(propertyToDelete)
-      alert('Property deleted successfully!')
+      toast.success('Property deleted successfully!')
+
     } catch (error) {
-      alert('Failed to delete property')
+      toast.error('Failed to delete property')
     }
     setShowConfirmModal(false)
     setPropertyToDelete(null)
@@ -264,6 +326,7 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
               <h3 className="font-semibold text-gray-900 dark:text-white">{property.title}</h3>
               <p className="text-sm text-gray-500">{property.location}</p>
               <p className="text-lg font-bold text-[#FF385C] mt-2">₹{property.price.toLocaleString()}</p>
+             
               <div className="flex gap-2 mt-3">
                 <button 
                   onClick={() => openEditModal(property)} 
@@ -357,14 +420,43 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
               {/* Existing Images Display (for edit mode) */}
               {editingProperty && existingImages.length > 0 && (
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Images</label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Current Images ({existingImages.length})
+                  </label>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                     {existingImages.map((img) => (
-                      <div key={img.id} className="relative">
-                        <img src={img.image_url} alt="Property" className="w-full h-20 object-cover rounded-lg" />
+                      <div key={img.id} className="relative group">
+                        <img 
+                          src={img.image_url} 
+                          alt="Property" 
+                          className="w-full h-24 object-cover rounded-lg" 
+                        />
+                        {/* Cover Badge */}
                         {img.is_cover && (
-                          <span className="absolute top-1 left-1 bg-yellow-500 text-white text-xs px-1 rounded">Cover</span>
+                          <span className="absolute top-1 left-1 bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded">
+                            Cover
+                          </span>
                         )}
+                        
+                        {/* Action Buttons - Show on hover */}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                          {!img.is_cover && (
+                            <button
+                              onClick={() => setCoverImage(img.id)}
+                              className="bg-yellow-500 text-white p-1.5 rounded-full hover:bg-yellow-600 transition-colors"
+                              title="Set as cover"
+                            >
+                              <FaStar size={12} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteImage(img.id)}
+                            className="bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors"
+                            title="Delete image"
+                          >
+                            <FaTrash size={12} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -383,19 +475,83 @@ function AdminDashboard({ properties, onAddProperty, onUpdateProperty, onDeleteP
                   required
                 />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price (₹) *</label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF385C]"
-                    required
-                  />
+
+              {/* Rent/Sale Toggle Button - Place this inside the modal */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Property Purpose
+                </label>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, purpose: 'sale', rent_price: '' })}
+                    className={`flex-1 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
+                      formData.purpose === 'sale'
+                        ? 'bg-gradient-to-r from-[#FF385C] to-[#E61E4D] text-white shadow-lg'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    <GiTakeMyMoney size={20} />
+                    For Sale
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, purpose: 'rent', price: '' })}
+                    className={`flex-1 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
+                      formData.purpose === 'rent'
+                        ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    <GiReceiveMoney size={20} />
+                    For Rent
+                  </button>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                {/* Price Field - Changes based on purpose */}
+                {formData.purpose === 'sale' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sale Price (₹) *</label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleInputChange}
+                      placeholder="Enter sale price"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF385C]"
+                      required
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rent Price (₹) *</label>
+                      <input
+                        type="number"
+                        name="rent_price"
+                        value={formData.rent_price}
+                        onChange={handleInputChange}
+                        placeholder="Monthly rent"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF385C]"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rent Period</label>
+                      <select
+                        name="rent_period"
+                        value={formData.rent_period}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF385C]"
+                      >
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                      </select>
+                    </div>
+                  </>
+                )}
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location *</label>

@@ -11,7 +11,8 @@ import Footer from './components/Footer'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { getProperties, getAdmins, createProperty, updateProperty, deleteProperty, createAdmin, deleteAdmin } from './services/api'
-
+import { ToastContainer } from 'react-toastify'
+  
 function AppContent() {
   const { user } = useAuth()
   const [properties, setProperties] = useState([])
@@ -139,6 +140,18 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <ToastContainer 
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+        />
         <AppContent />
       </AuthProvider>
     </ThemeProvider>
