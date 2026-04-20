@@ -1,2 +1,8 @@
-// src/config.js
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+// API Configuration
+const isProduction = import.meta.env.PROD
+
+export const API_URL = isProduction 
+  ? 'https://your-backend-url.onrender.com/api'  // Change this after backend deploy
+  : 'http://localhost:5000/api'
+
+export default { API_URL }
