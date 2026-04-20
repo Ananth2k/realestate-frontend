@@ -93,7 +93,7 @@ function FilterBar({ filters, setFilters }) {
       </div>
 
       {/* Filter bar with dropdowns */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         {/* Purpose Buttons */}
         <div className="flex gap-2">
           {purposeOptions.map(option => (

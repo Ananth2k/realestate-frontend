@@ -16,3 +16,14 @@
 .fade-in {
   animation: fadeIn 0.5s ease-out;
 }
+/* Add this to your index.css */
+body {
+  padding-top: 70px;
+}
+
+/* For mobile */
+@media (max-width: 768px) {
+  body {
+    padding-top: 60px;
+  }
+}
